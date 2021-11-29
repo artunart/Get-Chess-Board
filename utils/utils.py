@@ -256,6 +256,45 @@ def get_new_im_size(w, h, w_max, h_max):
     else:
         return int(w*h_max/h), int(h_max) 
 
+def get_im_shrink(w, h, w_max, h_max):
+    '''Calculate shrink factors from original image to display
+    w: width of the image in pixels
+    h: height of the image in pixels
+    w_max: maximum width of the image in pixels
+    h_max: maximum height of the image in pixels'''
+    im_w_new, im_h_new = get_new_im_size(w, h, w_max, h_max)
+    im_w_shrink, im_h_shrink,  =im_w_new/w, im_h_new/h 
+    return im_w_shrink, im_h_shrink 
+
+def scale_label_coords(df_file, img_width_col, img_height_col, disp_max_width, disp_max_height, label_cols, is_file_to_disp=True):
+    '''Returns a new dataframe with label coordinates appropriate for image display settings
+    df: dataFrame from the csv file  
+    img_width: 1 element list - name of file image width column
+    img_height: 1 element list - name of file image height column
+    disp_max_width: maximum width of the image in pixels
+    disp_max_height: maximum height of the image in pixels 
+    label_cols: list - names of x and y coordinates of label columns
+    returns dataframe with label coordinates adjusted for display size.'''
+    
+    df_img = df_file.copy()
+    shrink_inp = [list(df_img[img_width_col]), list(df_img[img_height_col]), [disp_max_width]*len(df_img), [disp_max_height]*len(df_img)] 
+    print(shrink_inp)
+    shrink_fac = [get_im_shrink(*_)[0] for _ in zip(*shrink_inp)] #note to self: Maybe vectorize.
+    print(shrink_fac)
+    df_img['shrink_fac'] = shrink_fac
+    if not is_file_to_disp:
+        df_img['shrink_fac'] = 1/df_img['shrink_fac']
+    print(df_img)
+    print(label_cols)
+    print(df_img[label_cols])
+    for _ in label_cols:
+        df_img[_] = np.round(df_img[_]*df_img['shrink_fac']) #at times f(finv)<>f due to rounding.
+    print(df_img[label_cols])
+    df_img.drop(['shrink_fac'], axis=1, inplace=True)
+    print(df_img) 
+    return df_img
+
+
 def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
     '''Updates screenshot labels and boundingboxes
     screenshot_path: Relative path to the chess screenshot image directory
@@ -268,11 +307,12 @@ def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
     if not os.path.exists(screenshot_path):
         print('Path \'{0}\' does not exist.'.format(screenshot_path))
     
-    MAX_DISP_HEIGHT = 600
-    MAX_DISP_WIDTH = 1000
+    MAX_DISP_HEIGHT = 600 #1800
+    MAX_DISP_WIDTH = 1000 #2880
 
-    labels_df = pd.read_csv(screenshot_labels_fname)
-    
+    file_labels_df = pd.read_csv(screenshot_labels_fname)
+    labels_df =  scale_label_coords(file_labels_df, 'width_pxl', 'height_pxl', MAX_DISP_WIDTH, MAX_DISP_HEIGHT, ['x_min_pxl', 'x_max_pxl', 'y_min_pxl', 'y_max_pxl'], is_file_to_disp=True)
+
     root = tkinter.Tk()
     root.title('Update Screenshot Labels')
 
@@ -390,12 +430,20 @@ def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
         draw_labels() 
 
     def on_save_frame_and_next():
-        nonlocal scr_i, crnt_scr_gr
-        labels_df.to_csv(screenshot_labels_fname, index=False)
+        nonlocal scr_i, crnt_scr_gr, next_button
+        
+        file_labels_df =  scale_label_coords(labels_df, 'width_pxl', 'height_pxl', MAX_DISP_WIDTH, MAX_DISP_HEIGHT, ['x_min_pxl', 'x_max_pxl', 'y_min_pxl', 'y_max_pxl'], is_file_to_disp=False)
+        file_labels_df.to_csv(screenshot_labels_fname, index=False)
     
         scr_fnames = list(set(labels_df['fname']))
-        if scr_i<len(scr_fnames):
-            scr_i += 1
+        scr_i = (scr_i+1)%len(scr_fnames)
+        next_scr_i = scr_i+2 if scr_i+2<=len(scr_fnames) else 1
+        next_button.configure(text="Save Frame & Next to {0}/{1}".format(next_scr_i, len(scr_fnames)))
+        print('here is scr_i:{}'.format(scr_i))
+            
+                    
+
+
    
         crnt_scr_gr = labels_df[labels_df['fname']==scr_fnames[scr_i]]
 
@@ -405,21 +453,12 @@ def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
         draw_rows()
 
 
-    row_ct += 1 
-
-    def draw_frame():
-        pass
-
-    def clear_frame():
-        pass
-
-
     draw_canvas()
     draw_labels()
     draw_header() 
     draw_rows()
                 
-    next_button = tkinter.Button(root, text="Save Frame & Next", command = on_save_frame_and_next)
+    next_button = tkinter.Button(root, text="Save Frame & Next to {0}/{1}".format(scr_i+2, len(scr_fnames)), command = on_save_frame_and_next)
     next_button.grid(row=row_ct+2, column = 10, columnspan=1)
 
     root.mainloop()
