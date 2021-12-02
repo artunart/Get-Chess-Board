@@ -21,16 +21,19 @@ utils.scale_label_coords(df_disp, 'width_pxl', 'height_pxl', 1000, 600, ['x_min_
 SQ_LABEL_COLUMNS = ['fname', 'SqColor-BW', 'PcColor-BWE', 'PcType-PRNBQK','HumCheck-YN'] 
 SCREENSHOT_LABEL_COLUMNS = ['fname', 'height_pxl','width_pxl','label','x_min_pxl','y_min_pxl','x_max_pxl','y_max_pxl', 'HumCheck-YN']
 
-
 def run_sq_label_update():
-    utils.insert_data_fnames('../data/raw/squares', '/Users/artun/Desktop/Springboard/springboard/Get-Chess-Board/data/model/sq_labels.csv', SQ_LABEL_COLUMNS)
+    utils.insert_data_fnames('../data/raw/squares', '../data/model/sq_labels.csv', SQ_LABEL_COLUMNS)
 
-    utils.update_sq_labels('../data/raw/squares', '/Users/artun/Desktop/Springboard/springboard/Get-Chess-Board/data/model/sq_labels.csv') 
+    utils.update_sq_labels('../data/raw/squares', '../data/model/sq_labels.csv') 
 
 
 def run_screenshot_label_update():
-    utils.insert_data_fnames('../data/raw/screenshots', '/Users/artun/Desktop/Springboard/springboard/Get-Chess-Board/data/model/screenshot_boundboxes.csv', SCREENSHOT_LABEL_COLUMNS, update_fn=utils.screenshot_height_width_update)
+    utils.insert_data_fnames('../data/raw/screenshots', '../data/model/screenshot_boundboxes.csv', SCREENSHOT_LABEL_COLUMNS, update_fn=utils.screenshot_height_width_update)
     
-    utils.update_screenshot_labels('../data/raw/screenshots', '/Users/artun/Desktop/Springboard/springboard/Get-Chess-Board/data/model/screenshot_boundboxes.csv') 
-run_sq_label_update()
+    utils.update_screenshot_labels('../data/raw/screenshots', '../data/model/screenshot_boundboxes.csv') 
+#run_sq_label_update()
 run_screenshot_label_update()
+
+#utils.prepare_scr_input_for_yolov5('../data/model/screenshot_boundboxes.csv', 'fname', 'label', ['width_pxl' ,'height_pxl'], ['x_min_pxl', 'y_min_pxl'], ['x_max_pxl', 'y_max_pxl'], '../data/raw/screenshots', '../data/model/scr_data.yaml', '../data/raw/screenshots/train', '../data/raw/screenshots/validation')
+ 
+utils.split_train_valid_test('../data/model/screenshot_boundboxes.csv', '../data/raw/screenshots',  '../data/raw/screenshots/train', '../data/raw/screenshots/validation', '../data/raw/screenshots/test', 0.7, 0.2, (1440,900))

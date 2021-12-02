@@ -109,8 +109,8 @@ def update_sq_labels(square_path, sq_labels_fname):
         print('Path \'{0}\' does not exist.'.format(square_path))
 
     labels_df = pd.read_csv(sq_labels_fname)
-    print(labels_df.columns)
-    print(labels_df.head())
+    #print(labels_df.columns)
+    #print(labels_df.head())
     
     root = tkinter.Tk()
     square_colors = ('B', 'W')
@@ -189,10 +189,10 @@ def update_sq_labels(square_path, sq_labels_fname):
             labels_df.loc[(crnt_label_df.index)[i],'HumCheck-YN'] = human_check_radios[i][0].get()
         crnt_label_idx = last_label_idx
         last_label_idx = crnt_label_idx + min(label_ct, len(labels_df)-crnt_label_idx)
-        print('crnt_label_idx: {0}\nlast_label_idx: {1}'.format(crnt_label_idx,last_label_idx))
+        #print('crnt_label_idx: {0}\nlast_label_idx: {1}'.format(crnt_label_idx,last_label_idx))
         crnt_label_df = labels_df.iloc[crnt_label_idx:last_label_idx,:]
-        print(type(crnt_label_df)) 
-        print(crnt_label_df.shape) 
+        #print(type(crnt_label_df)) 
+        #print(crnt_label_df.shape) 
         #pdb.set_trace()
         labels_df.to_csv(sq_labels_fname, mode='w', index=False, header=True)
         clear_rows()     
@@ -233,7 +233,7 @@ def update_sq_labels(square_path, sq_labels_fname):
     next_button = tkinter.Button(root, text="Save Frame & Next", command = on_save_frame_and_next)
     next_button.grid(row=label_ct+1, column = 13, columnspan=2)
     root.mainloop()    
-    print('end')
+    #print('end')
 
 def get_new_im_size(w, h, w_max, h_max):
     '''Resize image conserving aspect ratio with width and height lower than specicied max pixel values.
@@ -269,8 +269,8 @@ def get_im_shrink(w, h, w_max, h_max):
 def scale_label_coords(df_file, img_width_col, img_height_col, disp_max_width, disp_max_height, label_cols, is_file_to_disp=True):
     '''Returns a new dataframe with label coordinates appropriate for image display settings
     df: dataFrame from the csv file  
-    img_width: 1 element list - name of file image width column
-    img_height: 1 element list - name of file image height column
+    img_width: name of file image width column
+    img_height: name of file image height column
     disp_max_width: maximum width of the image in pixels
     disp_max_height: maximum height of the image in pixels 
     label_cols: list - names of x and y coordinates of label columns
@@ -278,20 +278,13 @@ def scale_label_coords(df_file, img_width_col, img_height_col, disp_max_width, d
     
     df_img = df_file.copy()
     shrink_inp = [list(df_img[img_width_col]), list(df_img[img_height_col]), [disp_max_width]*len(df_img), [disp_max_height]*len(df_img)] 
-    print(shrink_inp)
     shrink_fac = [get_im_shrink(*_)[0] for _ in zip(*shrink_inp)] #note to self: Maybe vectorize.
-    print(shrink_fac)
     df_img['shrink_fac'] = shrink_fac
     if not is_file_to_disp:
         df_img['shrink_fac'] = 1/df_img['shrink_fac']
-    print(df_img)
-    print(label_cols)
-    print(df_img[label_cols])
     for _ in label_cols:
         df_img[_] = np.round(df_img[_]*df_img['shrink_fac']) #at times f(finv)<>f due to rounding.
-    print(df_img[label_cols])
     df_img.drop(['shrink_fac'], axis=1, inplace=True)
-    print(df_img) 
     return df_img
 
 
@@ -314,7 +307,7 @@ def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
     labels_df =  scale_label_coords(file_labels_df, 'width_pxl', 'height_pxl', MAX_DISP_WIDTH, MAX_DISP_HEIGHT, ['x_min_pxl', 'x_max_pxl', 'y_min_pxl', 'y_max_pxl'], is_file_to_disp=True)
 
     root = tkinter.Tk()
-    root.title('Update Screenshot Labels')
+    root.title('Update Screenshot Labels [Click-Drag-Release to Add Label]')
 
     scr_fnames = list(set(labels_df['fname']))
     if len(scr_fnames)>0:
@@ -322,7 +315,6 @@ def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
    
     crnt_scr_gr = labels_df[labels_df['fname']==scr_fnames[scr_i]]
 
-    print(crnt_scr_gr)
     canvas = tkinter.Canvas(root)
    
     row_ct = 0
@@ -334,16 +326,13 @@ def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
 
     def addRectangle(event):
         nonlocal canvas, crnt_scr_gr
-        #rect_id = canvas.create_rectangle((lastx, lasty, event.x, event.y), outline='white')
-        #text_id = canvas.create_text((min(event.x, lastx), min(event.y,lasty)), text="Label1", fill='white', anchor="nw")
         _cols = ['label','x_min_pxl','y_min_pxl','x_max_pxl','y_max_pxl','HumCheck-YN']
         empty_processed = False
         for _i, _r in crnt_scr_gr.iterrows():
             if any(pd.isna(labels_df.loc[_i,_cols])) and not empty_processed:
-                print('got empty')
+                #print('got empty')
                 labels_df.loc[_i, _cols] = ['Chessboard', min(lastx, event.x), min(lasty, event.y), max(lastx, event.x), max(lasty, event.y), 'Y']
                 crnt_scr_gr = labels_df[labels_df['fname']==scr_fnames[scr_i]]
-                #crnt_scr_dict[_i] = [rect_id, text_id]
                 empty_processed = True
         if empty_processed == False:
             #pdb.set_trace()
@@ -364,9 +353,7 @@ def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
         im_h_orig, im_w_orig = im.height, im.width
         im_h_new, im_w_new = get_new_im_size(im.height, im.width, MAX_DISP_HEIGHT, MAX_DISP_WIDTH)
         im_h_shrink, im_w_shrink,  =im_h_new/im_h_orig, im_w_new/im_w_orig 
-        print(im_w_new, im_h_new)
         im = im.resize((im_w_new, im_h_new))
-        print(im.width, im.height)
         ph = ImageTk.PhotoImage(im)
 
         #pdb.set_trace()
@@ -399,7 +386,7 @@ def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
 
     def delete_row(i):
         nonlocal crnt_scr_gr
-        print("Row: {} deleted.".format(i))
+        #print("Row: {} deleted.".format(i))
         _cols = ['label','x_min_pxl','y_min_pxl','x_max_pxl','y_max_pxl','HumCheck-YN']
         if len(crnt_scr_gr)==1:
            for _c in _cols:
@@ -407,16 +394,17 @@ def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
         else:
            labels_df.drop(index=i, inplace=True)
         crnt_scr_gr = labels_df[labels_df['fname']==scr_fnames[scr_i]]
-        print(crnt_scr_gr)
         draw_rows()
     
+
     def draw_rows():
-        nonlocal row_ct, labels
+        nonlocal row_ct, labels, next_button
         '''Draws rows from the current screenshot data'''
         for _ in labels:
             #pdb.set_trace()
             _.destroy()
         labels = []
+        
         #Insert label rows
         for _i, _r in crnt_scr_gr.iterrows():
             row_ct += 1
@@ -426,25 +414,27 @@ def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
             _button = tkinter.Button(root, text='Delete', command=partial(delete_row, _r.name))
             labels.append(_button)
             _button.grid(row=row_ct, column=_j+2)
+
         draw_canvas()
         draw_labels() 
+        next_button.grid(row=row_ct+2, column = 10, columnspan=1)
 
-    def on_save_frame_and_next():
+
+    def on_save_frame_and_next(save_frame=True):
         nonlocal scr_i, crnt_scr_gr, next_button
-        
-        file_labels_df =  scale_label_coords(labels_df, 'width_pxl', 'height_pxl', MAX_DISP_WIDTH, MAX_DISP_HEIGHT, ['x_min_pxl', 'x_max_pxl', 'y_min_pxl', 'y_max_pxl'], is_file_to_disp=False)
-        file_labels_df.to_csv(screenshot_labels_fname, index=False)
+
+        #Save labels to file (after appropriate scaling)        
+        if save_frame:
+            file_labels_df =  scale_label_coords(labels_df, 'width_pxl', 'height_pxl', MAX_DISP_WIDTH, MAX_DISP_HEIGHT, ['x_min_pxl', 'x_max_pxl', 'y_min_pxl', 'y_max_pxl'], is_file_to_disp=False)
+            file_labels_df.to_csv(screenshot_labels_fname, index=False)
+        else:
+            print('not saved')
     
+        
         scr_fnames = list(set(labels_df['fname']))
-        scr_i = (scr_i+1)%len(scr_fnames)
-        next_scr_i = scr_i+2 if scr_i+2<=len(scr_fnames) else 1
+        scr_i = (scr_i+1)%len(scr_fnames) #Moves to the next image
+        next_scr_i = scr_i+2 if scr_i+2<=len(scr_fnames) else 1 #for displaying the one after
         next_button.configure(text="Save Frame & Next to {0}/{1}".format(next_scr_i, len(scr_fnames)))
-        print('here is scr_i:{}'.format(scr_i))
-            
-                    
-
-
-   
         crnt_scr_gr = labels_df[labels_df['fname']==scr_fnames[scr_i]]
 
         draw_canvas()
@@ -456,9 +446,110 @@ def update_screenshot_labels(screenshot_path, screenshot_labels_fname):
     draw_canvas()
     draw_labels()
     draw_header() 
+    next_button = tkinter.Button(root, text="Save Frame & Next to {0}/{1}".format(scr_i+2, len(scr_fnames)), command = on_save_frame_and_next)
     draw_rows()
                 
-    next_button = tkinter.Button(root, text="Save Frame & Next to {0}/{1}".format(scr_i+2, len(scr_fnames)), command = on_save_frame_and_next)
     next_button.grid(row=row_ct+2, column = 10, columnspan=1)
-
+    root.bind("<Right>", func=lambda x: on_save_frame_and_next(save_frame=False))
     root.mainloop()
+
+
+def prepare_scr_input_for_yolov5(source_csv_path, fname_col, label_col, size_cols,  min_corner_cols, max_corner_cols, image_path, yaml_file_path, train_path, validation_path):
+    '''Prepare input (yaml file and individual .txt files) to be used for yolov5.
+
+    Uses the csv file to prepare a .yaml file and the text data files for each image. [to be separated later into two functions: yaml & text data]
+    Args:
+        source_csv_path: path for the csv file containing bounding boxes.
+        fname_col: column name for the fname 
+        label_col: column name for the label 
+        size_cols: column names of (width, height) pairs.
+        min_corner_cols: column names of (x_min, y_min) of bounding boxes.
+        max_corner_cols: column names of (x_max, y_max) of bounding boxes.
+        image_path: path to the image directory
+        yaml_file_path: path to the yaml file
+        train_path: path to the training directory [only used for yaml file at this time]
+        validation_path:  path to the training directory [only used for yaml file at this time]
+
+    Returns: 
+        None. Prints success status.
+    '''
+    full_labels_df = pd.read_csv(source_csv_path)
+   
+    #filter for valid labels [note: missing Human Check]
+    _cols = [label_col]
+    _cols.extend(min_corner_cols)
+    _cols.extend(max_corner_cols)
+    labels_df = full_labels_df[~pd.isna(full_labels_df[_cols]).any(axis=1)]
+ 
+    #write yaml file
+    label_uniq_set = list(set(labels_df[label_col]))
+    label_uniq_set.sort()
+    nc = len(label_uniq_set)
+    class_dict = dict(zip(label_uniq_set, range(nc)))  #this dict should really be input.
+    #print(label_uniq_set)
+    #print(nc)
+    #print(class_dict)
+ 
+    yaml_str = ''
+    yaml_str += 'train: '+ train_path+'\n'
+    yaml_str += 'val: '+ validation_path+'\n'
+    yaml_str += '\n'
+    yaml_str += 'nc: {0:d}\n'.format(nc)
+    yaml_str += 'names: {0}'.format(label_uniq_set)
+   
+    with open(yaml_file_path, 'w') as f:
+        f.write(yaml_str)
+ 
+    print('yaml file written as follows:\n{0}\n'.format(yaml_str))
+
+   #write text data
+    x_min, x_max = min_corner_cols[0], max_corner_cols[0]
+    y_min, y_max = min_corner_cols[1], max_corner_cols[1]
+    width = size_cols[0]
+    height = size_cols[1]
+ 
+    
+    labels_df['class_id'] = labels_df[label_col].map(class_dict)
+
+    labels_df['rel_center_x'] = (labels_df[x_max] + labels_df[x_min])/2/labels_df[width]
+    labels_df['rel_center_y'] = (labels_df[y_max] + labels_df[y_min])/2/labels_df[height]
+    
+    labels_df['rel_width'] = (labels_df[x_max] - labels_df[x_min])/labels_df[width]
+    labels_df['rel_height'] = (labels_df[y_max] - labels_df[y_min])/labels_df[height]
+
+
+    for _fn, _g in labels_df.groupby(by=fname_col):
+         with open(image_path+'/'+_fn[:-4]+'.txt', 'w') as f:
+             for _i, _r in _g.iterrows(): #following yolov5 annotation [id, [0,1]^4]
+                 f.write('{0:d} '.format(_r['class_id']))
+                 f.write('{0:f} '.format(_r['rel_center_x']))
+                 f.write('{0:f} '.format(_r['rel_center_y']))
+                 f.write('{0:f} '.format(_r['rel_width']))
+                 f.write('{0:f}\n'.format(_r['rel_height']))
+     
+    print('Data files written.')
+    
+def split_train_valid_test(source_csv_path, image_path, train_path, validation_path, test_path, train_ratio, validation_ratio, img_size, img_format='jpg', random_seed=None):
+    '''Splits images into train, validation and test sets. Transfers them to relevant directories with indicated size and format.
+ 
+       Sum of train and validation ratio cannot be >=1. Rest allocated to test.
+    Args:
+        source_csv_path: path for the csv file containing bounding boxes.
+        image_path: path to the image directory
+        train_path: path to the training directory 
+        validation_path:  path to the validation directory
+        test_path:  path to test directory
+        train_ratio: ratio of training images to all images in source_csv_path
+        validation_ratio: ratio of validation images to all images in source_csv_path
+        img_size: (w,h) size of the train, validation and test images in pixels
+        img_format: format of train, validation and test images [default:'jpg']
+        random_seed: random seed for the split (on sorted list) [maybe feed dicts here for more consistent sorting]
+    
+    Returns:
+        None. Prints out the counts of final allocation.
+    '''        
+    pass
+    #Decide what you want to do with source_csv. Do you want things to disappear on their own? How about things you deleted? Do you want them to show up? Maybe add a disregard box? Or keep it simple?
+
+
+
