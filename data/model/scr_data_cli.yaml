@@ -1,0 +1,5 @@
+train: data/raw/screenshots/train
+val: data/raw/screenshots/validation
+
+nc: 1
+names: ['Chessboard']
