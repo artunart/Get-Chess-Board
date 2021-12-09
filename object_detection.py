@@ -5,7 +5,7 @@ import torch
 import yolov5
 class Board_Detection():
     '''
-    A wrapper around PyTorch implementation of Yolov5 (https://github.com/ultralytics/yolov5, see https://pjreddie.com/media/files/papers/yolo.pdf for Yolo) adapted for training and modeling chessboard captures from screenshots.
+    A labeler, trainer and a detector for screenshots. Labeler is implemented in gcb_utils while trainer and detector are interfaces into PyTorch implementation of Yolov5 (https://github.com/ultralytics/yolov5, see https://pjreddie.com/media/files/papers/yolo.pdf for Yolo.) Main methods are update_labels, train and predict.
     '''
     
     def __init__(self, model_dir, model_weight_file=None):
@@ -90,7 +90,7 @@ class Board_Detection():
 
     def train(self, yaml_path_or_dict, init_weights_dir, init_weights_fname, train_project_dir, train_project_name, imgsz = 1440, epochs=1500, cache = True, device = 'cpu',  **yolov5_kwargs):
         '''
-        Trains a new model on a dataset using select. Note that all paths of directories need to be specified relative to the yolov5 directory
+        Trains a new model on a dataset using select. Note that all paths of directories need to be specified relative to the yolov5 directory.
         '''
         
         #yolov5.train.ROOT = '.' #yolov5.train code has no option to set root - setting root this way
