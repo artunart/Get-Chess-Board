@@ -11,22 +11,27 @@ import shutil
 import tkinter
 
 
-def divide_board(image, top_left, bottom_right, rows=8, cols=8):
-    '''Divides the images into "rows" rows and "cols" columns starting from the "top_left" pixel to the "bottom_right" [incl] pixel. Returns the results in a list of tuples of form (row_no, col_no, square_image)'''
+def divide_board(image, left_top, right_bottom, rows=8, cols=8):
+    '''Divides the images into "rows" rows and "cols" columns starting from the "left_top" (x,y) pixel to the "right_bottom" [incl] (x,y) pixel. Returns the results in a list of tuples of form (row_no, col_no, square_image)'''
 
 
     squares = []
-    top, left = top_left
-    bottom, right = bottom_right
+    left, top = left_top
+    right, bottom = right_bottom
     
     top, bottom = make_dividable(top, bottom, rows) #what if not square? tbd 
     left, right = make_dividable(left, right, cols)
-    row_step = (bottom-top)//rows
-    col_step = (right-left)//cols
+    print((left, top),(right, bottom))
+    row_step = (bottom + 1 - top)//rows
+    print('row_step:{}'.format(row_step))
+    col_step = (right + 1 - left)//cols
+    print('col_step:{}'.format(col_step))
 
-    image = image[top:bottom,left:right,:]
+    image = image[top:bottom+1,left:right+1,:]
+#    plt.imshow(image)
+#    plt.show()
     print(image.shape)
-    image_divided = image.reshape(rows, row_step, cols, col_step, image.shape[-1]).swapaxes(1,2)
+    image_divided = image.reshape(rows, row_step,cols, col_step, image.shape[-1]).swapaxes(1,2)
         
     for r in range(rows):
         for c in range(cols):
@@ -37,7 +42,7 @@ def divide_board(image, top_left, bottom_right, rows=8, cols=8):
 def make_dividable(low, high, groups):
     '''Helper function to create an interval of length "high"-"low" divisible by "groups". Squeezes the interval from both sides. Returns new (low, high)'''
     nudge_low = True
-    while (high - low) % groups !=0:
+    while (high - low) % groups !=(groups-1):
         if nudge_low:
             low += 1
             nudge_low = False
@@ -53,16 +58,92 @@ def boards_to_squares(board_fnames, square_path):
         squares = divide_board(image, (0,0), (image.shape[0], image.shape[1]))
         for s in squares:
             plt.imsave(square_path+'/'+b_fn.rsplit('/')[-1][:-4]+'_squ_R{0}_C{1}.png'.format(s[0], s[1]),s[2])
+
+def convert_screenshot_to_square(
+                screenshot_csv_full_path,
+                screenshot_path,
+                sq_csv_full_path,
+                sq_files_path):
+    '''Converts labeled screenshots to squares and transfers them to a directory for labeling. Expects input from the user whether to transfer squares from a certain screenshot.
+        screenshot_csv_full_path. [Design choice for transferring only chess squares and not ads that can pop up at times.]
+        Args:
+            screenshot_csv_full_path: Full relative/absolute path to the screenshot bounding box csv file.
+            screenshot_path: Relative/absolute path to the screenshot directory [source for files].
+            sq_csv_full_path: Full rel/abs path to square labeling csv file. [to avoid duplicate transfers]
+            sq_files_path: Destination path (rel/abs) for the square images.
+        Returns:
+            None. During execution displays the board to be imported and asks for a decision
+        Notes: Non-chess-piece squares could also be imported for training purposes. Have to think/experiment.'''
+  
+    sq_df = pd.read_csv(sq_csv_full_path)
+    sq_df.head()
+    sq_existing_fnames = list(sq_df['fname'].map(lambda x: x.split('_')[0]).unique())
+
+    scr_df = pd.read_csv(screenshot_csv_full_path)
+    scr_df[['x_min_pxl', 'y_min_pxl', 'x_max_pxl', 'y_max_pxl']] = scr_df[['x_min_pxl', 'y_min_pxl', 'x_max_pxl', 'y_max_pxl']].astype('int') 
+
+
+    screenshot_train_fnames = list(set([_[:-4] for _ in os.listdir(screenshot_path) if not _[0]=='.' and _[-4:]=='.png']))
+
+
+
+    screenshots_to_board = list(set(screenshot_train_fnames) - set(sq_existing_fnames))
+    print(len(screenshots_to_board))
+    print('Files to be transferred: (Check them):\n',screenshots_to_board)
+
+
+    
+    for _screenshot in screenshots_to_board:
+        if _screenshot == '':
+            continue
+        im_full_path = '/'.join([screenshot_path, _screenshot])+'.png'
+        im = plt.imread(im_full_path)
+        scr_mask = scr_df['fname'] == (_screenshot+'.png')
+        im_data = scr_df[scr_mask]
+        left_top = im_data[['x_min_pxl', 'y_min_pxl']].values[0]
+
+        right_bottom = im_data[['x_max_pxl', 'y_max_pxl']].values[0]
+
+        squares = gcb_utils.divide_board(im, left_top, right_bottom, rows=8, cols=8)
+        rows, cols = 8, 8
+
+        left, top = left_top
+        right, bottom = right_bottom
+
+        tmp_im =im[top:bottom+1,left:right+1,:]
+        plt.imshow(tmp_im)
+        plt.show()
+
+        print('(p)rocess, (s)kip, (q)uit')
+        inp = input()
+        if inp == 'p':
+            pass
+        elif inp == 's':
+            continue
+        else:
+            break
+
+        for r in range(rows):
+            for c in range(cols):
+                _sq_im = squares[r*(rows)+c][2]
+                _sq_name = _screenshot + '_brd_sqr_R{0}_C{1}.png'.format(str(r), str(c))
+                plt.imsave('/'.join([sq_files_path,_sq_name]), _sq_im)
+
+
+
+
                  
-SQ_LABEL_COLUMNS = ['fname', 'SqColor-BW', 'PcColor-BWE', 'PcType-PRNBQK','HumCheck-YN']
+SQ_LABEL_COLUMNS = ['fname', 'SqColor-BWE', 'PcColor-BWE', 'PcType-PRNBQKE','HumCheck-YN']
 SCREENSHOT_LABEL_COLUMNS = ['fname', 'height_pxl','width_pxl','label','y_min_pxl','x_min_pxl','y_max_pxl','x_max_pxl']
 
 
-def insert_data_fnames(data_path, labels_fname, label_file_columns, update_fn=None):
+def insert_data_fnames(data_path, labels_fname, label_file_columns, label_cols, hum_check_col, update_fn=None):
     '''Inserts the names of files not already in "data_path" into "labels_fname" csv file. Else, creates a labels file in csv format, using  "label_file_columns".. File contains column names in first row and data in the rest. This program inserts those names not already in "date__path" and applies update_fn (if provided) to the appended files. Prints the number of lines inserted. Returns None
     data_path: str, path of directory containing data files, relative to project root
     labels_fname: str, path of the csv file, relative to project root
-    label_file_columns: list of str, ordered columns for the labels file'''
+    label_file_columns: list of str, ordered columns for the labels file
+    label_cols: list of str, columns of labels. Will be set to 'E' as default
+    hum_check_cols: list of str, human check column. Will be set to 'N' as default.'''
  
     if not os.path.exists(labels_fname):
         tmp_df = pd.DataFrame(columns=label_file_columns)
@@ -79,7 +160,9 @@ def insert_data_fnames(data_path, labels_fname, label_file_columns, update_fn=No
    
     df_append = pd.DataFrame(columns=df.columns)
     df_append['fname'] = images_to_append
-
+    df_append[label_cols] = 'E'
+    df_append[hum_check_col] = 'N'
+    
     if update_fn is not None:
         df_append = update_fn(df_append, data_path)
  
@@ -109,6 +192,7 @@ def update_sq_labels(square_path, sq_labels_fname):
     if not os.path.exists(square_path):
         print('Path \'{0}\' does not exist.'.format(square_path))
 
+    #pdb.set_trace()
     labels_df = pd.read_csv(sq_labels_fname)
     #print(labels_df.columns)
     #print(labels_df.head())
@@ -184,9 +268,9 @@ def update_sq_labels(square_path, sq_labels_fname):
         nonlocal last_label_idx
         nonlocal crnt_label_df
         for i in range(label_ct): #Update labels directly, not via crnt_label
-            labels_df.loc[(crnt_label_df.index)[i],'SqColor-BW'] = square_color_radios[i][0].get()
+            labels_df.loc[(crnt_label_df.index)[i],'SqColor-BWE'] = square_color_radios[i][0].get()
             labels_df.loc[(crnt_label_df.index)[i],'PcColor-BWE'] = piece_color_radios[i][0].get()
-            labels_df.loc[(crnt_label_df.index)[i],'PcType-PRNBQK'] = piece_type_radios[i][0].get()
+            labels_df.loc[(crnt_label_df.index)[i],'PcType-PRNBQKE'] = piece_type_radios[i][0].get()
             labels_df.loc[(crnt_label_df.index)[i],'HumCheck-YN'] = human_check_radios[i][0].get()
         crnt_label_idx = last_label_idx
         last_label_idx = crnt_label_idx + min(label_ct, len(labels_df)-crnt_label_idx)
@@ -221,9 +305,9 @@ def update_sq_labels(square_path, sq_labels_fname):
             labels[i].image = ph 
             labels[i].grid(row=i+1, column = col_img_bgn)
 
-            insert_radios(square_colors, square_color_radios, i, col_sq_bgn,'SqColor-BW')
+            insert_radios(square_colors, square_color_radios, i, col_sq_bgn,'SqColor-BWE')
             insert_radios(piece_colors, piece_color_radios, i, col_clr_bgn, 'PcColor-BWE') 
-            insert_radios(piece_types, piece_type_radios, i, col_typ_bgn, 'PcType-PRNBQK')
+            insert_radios(piece_types, piece_type_radios, i, col_typ_bgn, 'PcType-PRNBQKE')
             insert_radios(human_check, human_check_radios, i, col_hum_bgn, 'HumCheck-YN') 
 
     draw_rows()     
