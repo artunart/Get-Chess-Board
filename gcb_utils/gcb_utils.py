@@ -137,13 +137,13 @@ SQ_LABEL_COLUMNS = ['fname', 'SqColor-BWE', 'PcColor-BWE', 'PcType-PRNBQKE','Hum
 SCREENSHOT_LABEL_COLUMNS = ['fname', 'height_pxl','width_pxl','label','y_min_pxl','x_min_pxl','y_max_pxl','x_max_pxl']
 
 
-def insert_data_fnames(data_path, labels_fname, label_file_columns, label_cols, hum_check_col, update_fn=None):
+def insert_data_fnames(data_path, labels_fname, label_file_columns, update_fn=None, update_fn_kwargs=None):
     '''Inserts the names of files not already in "data_path" into "labels_fname" csv file. Else, creates a labels file in csv format, using  "label_file_columns".. File contains column names in first row and data in the rest. This program inserts those names not already in "date__path" and applies update_fn (if provided) to the appended files. Prints the number of lines inserted. Returns None
     data_path: str, path of directory containing data files, relative to project root
     labels_fname: str, path of the csv file, relative to project root
     label_file_columns: list of str, ordered columns for the labels file
-    label_cols: list of str, columns of labels. Will be set to 'E' as default
-    hum_check_cols: list of str, human check column. Will be set to 'N' as default.'''
+    update_fn: optional update function to manipulate the newly inserted data.
+    update_fn_kwargs: dict, kwargs for update_fn, excludes df - the first arg of update_fn.'''
  
     if not os.path.exists(labels_fname):
         tmp_df = pd.DataFrame(columns=label_file_columns)
@@ -160,19 +160,36 @@ def insert_data_fnames(data_path, labels_fname, label_file_columns, label_cols, 
    
     df_append = pd.DataFrame(columns=df.columns)
     df_append['fname'] = images_to_append
-    df_append[label_cols] = 'E'
-    df_append[hum_check_col] = 'N'
     
     if update_fn is not None:
-        df_append = update_fn(df_append, data_path)
+        df_append = update_fn(df_append, **update_fn_kwargs)
  
     df_to_csv = pd.concat([df, df_append])
     df_to_csv.reset_index()
     df_to_csv.to_csv(labels_fname, mode='w', index=False, header=True)
     return None
 
+def square_insert_default_values(df, label_cols=None, hum_check_col=None):
+    '''Designed for use with insert_data_fnames for squares. Modifies the df to insert defaults for label_cols (default: E)  and hum_check_col (default N)
+    Args:
+        df: pd.DataFrame to be modified and later on appended.
+        label_cols: list of str, columns of labels. Will be set to 'E' as default
+        hum_check_cols: list of str, human check column. Will be set to 'N' as default.
+    Returns:
+        A dataframe with default values in indicated columns'''
+
+    df[label_cols] = 'E'
+    df[hum_check_col] = 'N'
+    return df 
 
 def screenshot_height_width_update(df, screenshot_path):
+    '''Designed for use with insert_data_fnames for screenshots. Modifies the df to insert image height and width.
+    Args:
+        df: pd.DataFrame to be modified and later on appended.
+        screenshot_path: str, relative/absolute path to screenshot images
+    Returns:
+        A dataframe with new image heigh and width columns'''
+
     for _i, _r in df.iterrows():
         im = Image.open(screenshot_path+'/'+_r['fname'])
         df.loc[_i, 'height_pxl'] = int(im.height)

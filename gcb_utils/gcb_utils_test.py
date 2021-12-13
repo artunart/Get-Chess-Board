@@ -22,16 +22,16 @@ SQ_LABEL_COLUMNS = ['fname', 'SqColor-BWE', 'PcColor-BWE', 'PcType-PRNBQKE','Hum
 SCREENSHOT_LABEL_COLUMNS = ['fname', 'height_pxl','width_pxl','label','x_min_pxl','y_min_pxl','x_max_pxl','y_max_pxl', 'HumCheck-YN']
 
 def run_sq_label_update():
-    gcb_utils.insert_data_fnames('../data/raw/squares', '../data/model/sq_labels.csv', SQ_LABEL_COLUMNS, ['SqColor-BWE', 'PcColor-BWE', 'PcType-PRNBQKE'], ['HumCheck-YN'])
+    gcb_utils.insert_data_fnames('../data/raw/squares', '../data/model/sq_labels.csv', SQ_LABEL_COLUMNS, update_fn = gcb_utils.square_insert_default_values, update_fn_kwargs={'label_cols':['SqColor-BWE', 'PcColor-BWE', 'PcType-PRNBQKE'], 'hum_check_col':['HumCheck-YN']})
     gcb_utils.update_sq_labels('../data/raw/squares', '../data/model/sq_labels.csv') 
 
 
 def run_screenshot_label_update():
-    gcb_utils.insert_data_fnames('../data/raw/screenshots', '../data/model/screenshot_boundboxes.csv', SCREENSHOT_LABEL_COLUMNS, update_fn=gcb_utils.screenshot_height_width_update)
-    
+    gcb_utils.insert_data_fnames('../data/raw/screenshots', '../data/model/screenshot_boundboxes.csv', SCREENSHOT_LABEL_COLUMNS, update_fn=gcb_utils.screenshot_height_width_update, update_fn_kwargs={'screenshot_path':'../data/raw/screenshots'})
     gcb_utils.update_screenshot_labels('../data/raw/screenshots', '../data/model/screenshot_boundboxes.csv') 
-run_sq_label_update()
-#run_screenshot_label_update()
+
+#run_sq_label_update()
+run_screenshot_label_update()
 
 #gcb_utils.prepare_scr_input_for_yolov5('../data/model/screenshot_boundboxes.csv', 'fname', 'label', ['width_pxl' ,'height_pxl'], ['x_min_pxl', 'y_min_pxl'], ['x_max_pxl', 'y_max_pxl'], '../data/raw/screenshots', '../data/model/scr_data.yaml', '../data/raw/screenshots/train', '../data/raw/screenshots/validation')
  
