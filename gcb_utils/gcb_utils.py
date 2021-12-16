@@ -623,7 +623,7 @@ def prepare_scr_input_for_yolov5(source_csv_path, fname_col, label_col, size_col
 
     for _fn, _g in labels_df.groupby(by=fname_col):
          with open(image_path+'/'+_fn[:-4]+'.txt', 'w') as f:
-             for _i, _r in _g.iterrows(): #following yolov5 annotation [id, [0,1]^4]
+            for _i, _r in _g.iterrows(): #following yolov5 annotation [id, [0,1]^4]
                  f.write('{0:d} '.format(_r['class_id']))
                  f.write('{0:f} '.format(_r['rel_center_x']))
                  f.write('{0:f} '.format(_r['rel_center_y']))
@@ -632,7 +632,7 @@ def prepare_scr_input_for_yolov5(source_csv_path, fname_col, label_col, size_col
      
     print('Data files written.')
     
-def split_train_valid_test(source_csv_path, fname_col, image_path, train_path, validation_path, test_path, train_ratio, validation_ratio, img_size, img_format='jpg', random_seed=None):
+def split_train_valid_test(source_csv_path, fname_col, image_path, train_path, validation_path, test_path, train_ratio, validation_ratio, img_size, img_format='jpg', random_seed=None, transfer_labeling_txt=True):
     '''Splits images into train, validation and test sets. Transfers them to relevant directories with indicated size and format.
  
        Sum of train and validation ratio cannot be >=1. Rest allocated to test.
@@ -647,7 +647,8 @@ def split_train_valid_test(source_csv_path, fname_col, image_path, train_path, v
         validation_ratio: ratio of validation images to all images in source_csv_path
         img_size: (w,h) size of the train, validation and test images in pixels
         img_format: format of train, validation and test images [default:'jpg']
-        shuffle_seed: int, seed to shuffle list - works across runs if sorted file list is the same 
+        random_seed: int, seed to shuffle list - works across runs if sorted file list is the same 
+        transfer_labeling_txt: bool: True, whether or not to transfer a label txt file from image path 
     Returns:
         None. Prints out the counts of final allocation.
     '''        
@@ -658,7 +659,8 @@ def split_train_valid_test(source_csv_path, fname_col, image_path, train_path, v
 
     #Get labeled source files names
     df_source = pd.read_csv(source_csv_path)
-    notna_cols = df_source.columns  #here as a reminder to push notna_cols to Args if source csv format changes
+    print('Len df_source: {}'.format(len(df_source)))
+    notna_cols = ['PcColor-BWE', 'PcType-PRNBQKE'] #here as a reminder to push notna_cols to Args if source csv format changes
     not_na_labels_df = df_source[~pd.isna(df_source[notna_cols]).any(axis=1)]
     #get is na from source files
 
@@ -679,14 +681,15 @@ def split_train_valid_test(source_csv_path, fname_col, image_path, train_path, v
     validation_bgn = int(train_ratio*len_imgs)
     test_bgn = int((train_ratio + validation_ratio)*len_imgs)
     if validation_bgn == train_bgn:
-       validation_bgn += 1
+        validation_bgn += 1
     if test_bgn == validation_bgn:
-       test_bgn = min(len_ims, test_bgn+1)
+        test_bgn = min(len_ims, test_bgn+1)
 
     train_imgs = images_to_split[train_bgn:validation_bgn]
     validation_imgs = images_to_split[validation_bgn:test_bgn]
     test_imgs = images_to_split[test_bgn:len_imgs]
     
+    print("Total Images to Split: {}".format(len(images_to_split)))
     print("Total Train Images: {}".format(len(train_imgs)))
     print("Total Validation Images: {}".format(len(validation_imgs)))
     print("Total Test Images: {}".format(len(test_imgs)))
@@ -706,11 +709,11 @@ def split_train_valid_test(source_csv_path, fname_col, image_path, train_path, v
         #delete files
         if os.path.exists(_path):
             for _f in os.listdir(_path):
-               _ext = _f.split('.')[-1]
-               if _ext in IMG_FORMATS or _ext == 'txt':
+                _ext = _f.split('.')[-1]
+                if _ext in IMG_FORMATS or _ext == 'txt':
                    os.remove(_path+'/'+_f)
         else:
-           os.mkdir(_path)
+            os.mkdir(_path)
       
         for _f in _imgs:
             #Resize, convert, write image in _dest dir
@@ -722,11 +725,12 @@ def split_train_valid_test(source_csv_path, fname_col, image_path, train_path, v
             _fi = '.'.join(_)
             _im.save(_path+'/'+_fi)
 
-            #Insert labeling text
-            _ = _f.split('.')
-            _[-1] = 'txt'
-            _ft = '.'.join(_)
-            shutil.copy(image_path+'/'+_ft, _path+'/'+_ft)
+            #Transfer labeling text
+            if transfer_labeling_txt:
+                _ = _f.split('.')
+                _[-1] = 'txt'
+                _ft = '.'.join(_)
+                shutil.copy(image_path+'/'+_ft, _path+'/'+_ft)
             
            #there are still issues with how to treat the csv display on labeling. Not now, but you have more time to think until the next data ingest/labeling cycle.
  
