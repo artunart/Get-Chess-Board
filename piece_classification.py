@@ -14,8 +14,9 @@ class Piece_Classification():
     def __init__(self, model_dir, model_weight_fname=None):
         self.model_dir = model_dir
         self.model_weight_fname = model_weight_fname
+        self.model = None    
         if model_weight_fname is None:
-            print('No model weight file specified. You can train a new model using Piece_Classification.train.')
+            print('No model weight file specified. You can train a new model using Piece_Classification.train or create one using .create_model and then training it.')
         else: 
             self.model = tf.keras.models.load_model(
                       '/'.join([self.model_dir, self.model_weight_fname]))
@@ -24,8 +25,8 @@ class Piece_Classification():
         self.IMG_FORMATS = ['png', 'jpg', 'jpeg']
 
 
-    def train(self, train_data_dir, labels_csv_full_path, fname_col, label_cols, label_dict_csv_full_path,  image_size, model_dir, model_weight_fname, init_weights_dir=None, init_weights_fname=None, epochs=1500, test_data_dir=None,  tf_fit_kwargs=None, tf_compile_kwargs=None):
-        ''' Trains a model from scratch or from initial weights. A central storage file containts labeling data for both training and validation (optional) datasets. 
+    def train(self, train_data_dir, labels_csv_full_path, fname_col, label_cols, label_dict_csv_full_path,  image_size, model_dir, model_weight_fname, init_weights_dir=None, init_weights_fname=None, epochs=1500, test_data_dir=None,  tf_fit_kwargs=None, tf_compile_kwargs=None, create_model_kwargs=None):
+        ''' Trains a model from scratch or from initial weights. The best model in terms of 'val_loss' (if with validation data) or 'loss' (no validation data) is saved. A central storage file containts labeling data for both training and validation (optional) datasets. 
         Args:
         train_data_dir: Absolute/relative path of the directory containing training images
         labels_csv_full_path: absolute/relative full path for the labels csv file (different than the label_dict_file that contains only the class names) 
@@ -41,40 +42,48 @@ class Piece_Classification():
         test_data_dir: relative/absolute path for test images
         tf_fit_kwargs: kwargs dict for tf model fit (tf.keras.Sequential.fit) Refer to keras for more details.
         tf_compile_kwargs: kwargs dict for tf model compile (tf.keras.Sequential.compile). Refer to keras for more details 
+        create_model_kwargs: kwaargs dict for some model architecture parameters in self.create_model.
         Returns: None. After any tf printouts, prints the directory where the final weights are output.
         '''
         self.model_dir = model_dir
         self.model_weight_fname = model_weight_fname
 
-        X_train, y_train = self.make_X_y(source_train, labels_csv_full_path, fname_col, label_cols, label_dict_csv_full_path, image_size)
+        X_train, y_train = self.make_X_y(train_data_dir, labels_csv_full_path, fname_col, label_cols, label_dict_csv_full_path, image_size)
 
         if test_data_dir:
-            X_test, y_test = self.make_X_y(source_test, labels_csv_full_path, fname_col, label_cols, label_dict_csv_full_path, image_size)
+            X_test, y_test = self.make_X_y(test_data_dir, labels_csv_full_path, fname_col, label_cols, label_dict_csv_full_path, image_size)
+            callback_save_best = tf.keras.callbacks.ModelCheckpoint('/'.join([model_dir, model_weight_fname]), save_best_only = True, verbose = 2, monitor='val_loss')           
         else:
             X_test, y_test = None, None
+            callback_save_best = tf.keras.callbacks.ModelCheckpoint('/'.join([model_dir, model_weight_fname]), save_best_only = True, verbose = 2, monitor='loss')
+            
 
         if init_weights_dir:
             self.model = tf.keras.models.load_model('/'.join([init_weights_dir, init_weights_fname])) 
         else: 
-            self.model = self.create_model(label_dict_csv_full_path, image_size, tf_compile_kwargs)
+            if not create_model_kwargs:
+                create_model_kwargs = {}  
+            self.model = self.create_model(label_dict_csv_full_path, image_size, tf_compile_kwargs, **create_model_kwargs)
          
         if not tf_fit_kwargs:
             tf_fit_kwargs = {}
-        tf_fit_kwargs['epochs'] = epochs
-        if test_data_dir: 
+        if 'callbacks' not in tf_fit_kwargs and callback_save_best:
+            tf_fit_kwargs['callbacks'] = callback_save_best
+        if 'validation_data' not in  tf_fit_kwargs and test_data_dir: 
             tf_fit_kwargs['validation_data'] = (X_test, y_test)
+        tf_fit_kwargs['epochs'] = epochs
+         
         self.model.fit(X_train, y_train, **tf_fit_kwargs)    
    
-        self.model.save('/'.join([model_dir, model_weight_fname])) 
-        print('Final model saved to: {}'.format('/'.join([model_dir, model_weight_fname])))
+        print('Best model saved to: {}'.format('/'.join([model_dir, model_weight_fname])))
     
     
     def predict(self, data_dir, image_size):
-        ''' Trains a model from scratch or from initial weights. A central storage file containts labeling data for both training and validation (optional) datasets. 
+        '''Makes classification predictions for the images in data_dir converted the image size indicated.
         Args:
         data_dir: Absolute/relative path of the directory containing prediction images
-        image_size: tuple (width, height) in pixels
-        Returns: Output None. After any tf printouts, prints the directory where the final weights are output.
+        image_size: tuple (width, height) in pixels. To convert image size in model specification
+        Returns: numpy ndarray. Output of tf.keras.Sequential.predict.
         '''
         if not self.model:
             if not self.model_weight_fname:
@@ -90,14 +99,14 @@ class Piece_Classification():
        
         print('Prediction Image Count:{0}'.format(len(data_files)))
         
-        #Process to create X and y
+        #Process to create X
         for _fname in data_files:
             _im = Image.open('/'.join([data_dir, _fname]))
             _im = _im.resize(image_size)
             _tmp_array = np.asarray(_im)[:,:,0:3]
             X_list.append(_tmp_array)
             _im.close()
-
+        
         X = np.stack(X_list)
         X = X[:,:,:,0:3].reshape(len(X_list), image_size[0], image_size[1], 3)
    
@@ -123,11 +132,12 @@ class Piece_Classification():
        gcb_utils.update_sq_labels(main_data_path, labels_csv_full_path) 
 
 
-    def create_model(self, label_dict_csv_full_path, image_size, tf_compile_kwargs):
+    def create_model(self, label_dict_csv_full_path, image_size, tf_compile_kwargs, conv1_filter_size=15):
         '''Creates and compiles a classier with two convolutional neural network layers to a dense layer which is in turn connected to a dense output layer with softmax activation
         Args:
         labels_csv_full_path: absolute/relative full path for the labels csv file (different than the label_dict_file that contains only the class names) 
         image_size: tuple (width, height) in pixels
+        conv1_filter_size: filter size (in pixels)  for first convolution layer. Same value passed for both width and height.
         Returns:
         Creates and compiles the model. Updates self.model.
         '''
@@ -141,8 +151,9 @@ class Piece_Classification():
 #       print(label_list)
         label_len = len(label_list)
         
+        #Model Architecture
         model = Sequential()
-        model.add(Conv2D(filters=16,kernel_size=(15,15),padding='same',activation='relu',input_shape=(image_size[0], image_size[1],3)))
+        model.add(Conv2D(filters=16,kernel_size=(conv1_filter_size,conv1_filter_size),padding='same',activation='relu',input_shape=(image_size[0], image_size[1],3)))
         model.add(MaxPooling2D(pool_size=(2,2)))
         model.add(Conv2D(filters=16,kernel_size=(3,3),padding='same',activation='relu'))
         model.add(MaxPooling2D(pool_size=(2,2)))
@@ -155,7 +166,7 @@ class Piece_Classification():
             tf_compile_kwargs = {}
         tf_compile_kwargs['optimizer'] = 'adam'
         tf_compile_kwargs['loss'] = 'categorical_crossentropy'
-        tf_compile_kwargs['metrics'] = 'accuracy'
+        tf_compile_kwargs['metrics'] = ['accuracy']
         model.compile(**tf_compile_kwargs)
         return model  
 
@@ -182,12 +193,12 @@ class Piece_Classification():
 
         X_list = []
         y_list = []
-        print(labels_csv_full_path)
+#       print(labels_csv_full_path)
         labels_df = pd.read_csv(labels_csv_full_path)
         labels_df['label'] = ''
         for _ in label_cols:
             labels_df['label'] = labels_df['label'] + labels_df[_].astype('O')
-        print(labels_df['label'].head())
+#       print(labels_df['label'].head())
 
         #Get data files - filter for images, strip extensions
         data_files = [_ for _ in os.listdir(data_dir) if _.split('.')[-1] in self.IMG_FORMATS]
@@ -202,7 +213,7 @@ class Piece_Classification():
 #       print(labels_df['fname_noext'].head())
        
         #Find which files to process - could also make sure again that HumCheck is Y 
-        labels_df_toprocess = pd.merge(left=labels_df, right=data_files_df, on='fname_noext')
+        labels_df_toprocess = pd.merge(left=data_files_df, right=labels_df, on='fname_noext')
         print('All image Count:{0}\nData Dir Count:{1}\nFinal Count to Process:{2}'.format(len(labels_df), len(data_files_df), len(labels_df_toprocess))) 
         
         #Process to create X and y
@@ -242,7 +253,7 @@ if __name__ == '__main__':
     model_weight_fname = 'cnn_pieces.h5' 
     main_source_dir = 'data/raw/squares'
     source_train = 'data/raw/squares/train'
-    source_valid = 'data/raw/squares/valid'
+    source_valid = 'data/raw/squares/validation'
     source_test = 'data/raw/squares/test' 
     label_dict_csv_full_path = 'data/model/piece-train/chess_dict_all_EBW.csv'
     labels_csv_full_path = 'data/model/sq_labels.csv'
@@ -274,5 +285,5 @@ if __name__ == '__main__':
 #   _ = piece_classifier.predict(source_test, image_size)
 #   print(_)
 
-#   piece_classifier.update_labels(main_source_dir, labels_csv_full_path, SQ_LABEL_COLUMNS, update_fn = gcb_utils.square_insert_default_values, update_fn_kwarg  ={'label_c lsype-PRNBQKE'], 'hum_check_col':['HumCheck-YN']})
+#   piece_classifier.update_labels(main_source_dir, labels_csv_full_path, SQ_LABEL_COLUMNS, update_fn = gcb_utils.square_insert_default_values, update_fn_kwargs ={'label_cols':['SqColor-BWE', 'PcColor-BWE', 'PcType-PRNBQKE'], 'hum_check_col':['HumCheck-YN']})
 
