@@ -1,6 +1,7 @@
 import gcb_utils.gcb_utils as gcb_utils
 import os
 import pandas as pd 
+#import pdb
 import torch
 import yolov5
 class Board_Detection():
@@ -75,15 +76,22 @@ class Board_Detection():
         #Output detection results in a pd.DataFrame
         labels_dir = '/'.join([crnt_project_dir, 'labels'])
         labels_files =  [_ for _ in os.listdir(labels_dir) if _.endswith('.txt')]
-        
-        df_cols = ['fname', 'label', 'x_min_norm', 'y_min_norm', 'x_max_norm', 'y_max_norm', 'confidence']
+        #pdb.set_trace() 
+        df_cols = ['fname', 'label', 'x_ctr_norm', 'y_ctr_norm', 'x_span_norm', 'y_span_norm', 'confidence']
         labels_df = pd.DataFrame(columns = df_cols)
         
         for _ in labels_files:
-            _df = pd.read_csv('/'.join([labels_dir, _]), sep=' ')
-            _df = pd.concat([pd.Series(data=[_[:-4]]*len(_df)), _df], axis=1)
+            _df = pd.read_csv('/'.join([labels_dir, _]), sep=' ', header = None)
+            _df = pd.concat([pd.Series(data=[_[:-4]]*len(_df)), _df], axis=1) #note to self: replace [:-4] with IMG_FORMAT notation
             _df.columns = df_cols
             labels_df = pd.concat([labels_df, _df])
+
+        labels_df['x_min_norm'] = labels_df['x_ctr_norm'] - labels_df['x_span_norm']/2
+        labels_df['x_max_norm'] = labels_df['x_ctr_norm'] + labels_df['x_span_norm']/2
+        labels_df['y_min_norm'] = labels_df['y_ctr_norm'] - labels_df['y_span_norm']/2
+        labels_df['y_max_norm'] = labels_df['y_ctr_norm'] + labels_df['y_span_norm']/2
+        #print(labels_df)
+        labels_df.drop(['x_ctr_norm', 'y_ctr_norm', 'x_span_norm', 'y_span_norm'], axis=1, inplace=True)
 
         return labels_df
 

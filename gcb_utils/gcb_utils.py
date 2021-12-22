@@ -21,7 +21,7 @@ def divide_board(image, left_top, right_bottom, rows=8, cols=8):
     
     top, bottom = make_dividable(top, bottom, rows) #what if not square? tbd 
     left, right = make_dividable(left, right, cols)
-    print((left, top),(right, bottom))
+    #print((left, top),(right, bottom))
     row_step = (bottom + 1 - top)//rows
     print('row_step:{}'.format(row_step))
     col_step = (right + 1 - left)//cols
@@ -30,7 +30,7 @@ def divide_board(image, left_top, right_bottom, rows=8, cols=8):
     image = image[top:bottom+1,left:right+1,:]
 #    plt.imshow(image)
 #    plt.show()
-    print(image.shape)
+    #print(image.shape)
     image_divided = image.reshape(rows, row_step,cols, col_step, image.shape[-1]).swapaxes(1,2)
         
     for r in range(rows):
@@ -42,7 +42,7 @@ def divide_board(image, left_top, right_bottom, rows=8, cols=8):
 def make_dividable(low, high, groups):
     '''Helper function to create an interval of length "high"-"low" divisible by "groups". Squeezes the interval from both sides. Returns new (low, high)'''
     nudge_low = True
-    while (high - low) % groups !=(groups-1):
+    while ((high - low) % groups) !=(groups-1):
         if nudge_low:
             low += 1
             nudge_low = False
@@ -51,15 +51,15 @@ def make_dividable(low, high, groups):
             nudge_low = True
     return (low, high)
 
-def boards_to_squares(board_fnames, square_path):
+def boards_to_squares(board_fnames, square_path): #could be extended for end to end
     '''Processes the list "board_fnames" along with their "board_cols" and "board_rows" (int or list of ints) and writes as separate files to square_path. Output filenames are in the form: board_fname+'_squ_RxCy' where x, y are row and column numbers from the board.''' 
     for i, b_fn in enumerate(board_fnames):
         image = plt.imread(b_fn)
-        squares = divide_board(image, (0,0), (image.shape[0], image.shape[1]))
+        squares = divide_board(image, (0,0), (image.shape[1]-1, image.shape[0]-1)) #!different order than Image.open
         for s in squares:
             plt.imsave(square_path+'/'+b_fn.rsplit('/')[-1][:-4]+'_squ_R{0}_C{1}.png'.format(s[0], s[1]),s[2])
 
-def convert_screenshot_to_square(
+def convert_screenshot_to_square( #find a better name.
                 screenshot_csv_full_path,
                 screenshot_path,
                 sq_csv_full_path,
@@ -152,7 +152,7 @@ def insert_data_fnames(data_path, labels_fname, label_file_columns, update_fn=No
     images_in_file = []
     df = pd.read_csv(labels_fname)
     images_in_file = list(df['fname'].values)
-    print(images_in_file)
+    #print(images_in_file)
 
     images_in_dir = [_ for _ in os.listdir(data_path) if _[-3:]=='png']
 
@@ -339,10 +339,13 @@ def update_sq_labels(square_path, sq_labels_fname):
 
 def get_new_im_size(w, h, w_max, h_max):
     '''Resize image conserving aspect ratio with width and height lower than specicied max pixel values.
+    Args:
     w: width of the image in pixels
     h: height of the image in pixels
     w_max: maximum width of the image in pixels
-    h_max: maximum height of the image in pixels'''
+    h_max: maximum height of the image in pixels
+    Returns:
+    Returns new_im_width, new_im_height in pixels.'''
 
     if w==0 or h==0 or w_max==0 or h_max==0:
         raise Exception('Parameters cannot be <=0. Should be >0.')
@@ -623,7 +626,7 @@ def prepare_scr_input_for_yolov5(source_csv_path, fname_col, label_col, size_col
 
     for _fn, _g in labels_df.groupby(by=fname_col):
          with open(image_path+'/'+_fn[:-4]+'.txt', 'w') as f:
-            for _i, _r in _g.iterrows(): #following yolov5 annotation [id, [0,1]^4]
+             for _i, _r in _g.iterrows(): #following yolov5 annotation [id, [0,1]^4]
                  f.write('{0:d} '.format(_r['class_id']))
                  f.write('{0:f} '.format(_r['rel_center_x']))
                  f.write('{0:f} '.format(_r['rel_center_y']))
@@ -659,8 +662,7 @@ def split_train_valid_test(source_csv_path, fname_col, image_path, train_path, v
 
     #Get labeled source files names
     df_source = pd.read_csv(source_csv_path)
-    print('Len df_source: {}'.format(len(df_source)))
-    notna_cols = ['PcColor-BWE', 'PcType-PRNBQKE'] #here as a reminder to push notna_cols to Args if source csv format changes
+    notna_cols = df_source.columns  #here as a reminder to push notna_cols to Args if source csv format changes
     not_na_labels_df = df_source[~pd.isna(df_source[notna_cols]).any(axis=1)]
     #get is na from source files
 
@@ -681,15 +683,14 @@ def split_train_valid_test(source_csv_path, fname_col, image_path, train_path, v
     validation_bgn = int(train_ratio*len_imgs)
     test_bgn = int((train_ratio + validation_ratio)*len_imgs)
     if validation_bgn == train_bgn:
-        validation_bgn += 1
+       validation_bgn += 1
     if test_bgn == validation_bgn:
-        test_bgn = min(len_ims, test_bgn+1)
+       test_bgn = min(len_ims, test_bgn+1)
 
     train_imgs = images_to_split[train_bgn:validation_bgn]
     validation_imgs = images_to_split[validation_bgn:test_bgn]
     test_imgs = images_to_split[test_bgn:len_imgs]
     
-    print("Total Images to Split: {}".format(len(images_to_split)))
     print("Total Train Images: {}".format(len(train_imgs)))
     print("Total Validation Images: {}".format(len(validation_imgs)))
     print("Total Test Images: {}".format(len(test_imgs)))
@@ -709,11 +710,11 @@ def split_train_valid_test(source_csv_path, fname_col, image_path, train_path, v
         #delete files
         if os.path.exists(_path):
             for _f in os.listdir(_path):
-                _ext = _f.split('.')[-1]
-                if _ext in IMG_FORMATS or _ext == 'txt':
+               _ext = _f.split('.')[-1]
+               if _ext in IMG_FORMATS or _ext == 'txt':
                    os.remove(_path+'/'+_f)
         else:
-            os.mkdir(_path)
+           os.mkdir(_path)
       
         for _f in _imgs:
             #Resize, convert, write image in _dest dir
@@ -733,4 +734,34 @@ def split_train_valid_test(source_csv_path, fname_col, image_path, train_path, v
                 shutil.copy(image_path+'/'+_ft, _path+'/'+_ft)
             
            #there are still issues with how to treat the csv display on labeling. Not now, but you have more time to think until the next data ingest/labeling cycle.
- 
+
+def get_fen_from_labeled_pred(labeled_pred, rows=8, cols=8):
+    '''
+    Returs piece placement portion of an FEN for a list of strings (single chars). In the the list '.' represents an empty square while other characters follow FEN.
+    Args: 
+         labeled_pred: list of str (single char)
+         rows: number of rows
+         cols: number of cols
+    Returns:
+         FEN piece placement string.
+    '''
+    fen_piece_placement = []
+    for _r in range(rows):
+        _rank = ''.join(labeled_pred[_r*rows:_r*rows+cols])
+        _line = []
+        _rank = _rank.replace('.','1')
+        for _ in _rank:
+            if _ == '1':
+                if not _line:
+                    _line.append('1')
+                elif _line[-1].isnumeric():
+                    _line[-1] = str(int(_line[-1]) +1)
+                else:
+                    _line.append(_)
+            else:
+                _line.append(_)
+        fen_piece_placement.append(''.join(_line))
+    fen_piece_placement = '/'.join(fen_piece_placement)
+    return fen_piece_placement
+
+

@@ -96,7 +96,7 @@ class Piece_Classification():
 
         #Get data files - filter for images, strip extensions
         data_files = [_ for _ in os.listdir(data_dir) if _.split('.')[-1] in self.IMG_FORMATS]
-       
+        data_files.sort() 
         print('Prediction Image Count:{0}'.format(len(data_files)))
         
         #Process to create X
@@ -215,7 +215,7 @@ class Piece_Classification():
         #Find which files to process - could also make sure again that HumCheck is Y 
         labels_df_toprocess = pd.merge(left=data_files_df, right=labels_df, on='fname_noext')
         print('All image Count:{0}\nData Dir Count:{1}\nFinal Count to Process:{2}'.format(len(labels_df), len(data_files_df), len(labels_df_toprocess))) 
-        
+        labels_df_toprocess = labels_df_toprocess.sort_values(by='fname')
         #Process to create X and y
         for _i, _r in labels_df_toprocess.iterrows():
             _fname = _r[fname_col]

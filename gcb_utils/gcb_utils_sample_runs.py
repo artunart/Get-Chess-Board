@@ -48,3 +48,8 @@ def test_convert_screenshot_to_square():
                     screenshot_path,
                     sq_csv_full_path,
                     sq_files_path)
+
+labeled_pred = ['r', '.', 'b', '.', 'k', '.', '.', 'r', 'p', 'p', '.', '.', 'p', 'p', 'b', 'p', '.', '.', 'n', '.', '.', '.', 'p', '.', 'q', '.', '.', '.', '.', '.', '.', '.', '.', '.', 'B', 'P', 'P', '.', '.', '.', '.', '.', '.', '.', 'B', '.', '.', '.', 'P', '.', '.', '.', 'N', 'P', 'P', 'P', 'R', '.', '.', 'Q', 'K', '.', '.', 'R']
+
+gcb_utils.get_fen_from_labeled_pred(labeled_pred, rows=8, cols=8)
+
