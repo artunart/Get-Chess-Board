@@ -119,17 +119,17 @@ class Piece_Classification():
                       square_label_columns,
                       update_fn = gcb_utils.square_insert_default_values,
                       update_fn_kwargs ={'label_cols':['SqColor-BWE', 'PcColor-BWE', 'PcType-PRNBQKE'], 'hum_check_col':['HumCheck-YN']}):
-       #Passage to label updating GUI.
-       if square_label_columns is None:
-           square_label_columns  = self.SQUARE_LABEL_COLUMNS
-       print('Data path: {}'.format(main_data_path))
-       print('Labels csv full path: {}'.format(labels_csv_full_path))
-       print('Square label columns: {}'.format(square_label_columns))
-       print('Update function: {}'.format(update_fn))
-       print('Update function keyword args: {}'.format(update_fn_kwargs))
+        #Passage to label updating GUI.
+        if square_label_columns is None:
+            square_label_columns  = self.SQUARE_LABEL_COLUMNS
+        print('Data path: {}'.format(main_data_path))
+        print('Labels csv full path: {}'.format(labels_csv_full_path))
+        print('Square label columns: {}'.format(square_label_columns))
+        print('Update function: {}'.format(update_fn))
+        print('Update function keyword args: {}'.format(update_fn_kwargs))
    
-       gcb_utils.insert_data_fnames(main_data_path, labels_csv_full_path, square_label_columns, update_fn = update_fn, update_fn_kwargs=update_fn_kwargs)
-       gcb_utils.update_sq_labels(main_data_path, labels_csv_full_path) 
+        gcb_utils.insert_data_fnames(main_data_path, labels_csv_full_path, square_label_columns, update_fn = update_fn, update_fn_kwargs=update_fn_kwargs)
+        gcb_utils.update_sq_labels(main_data_path, labels_csv_full_path) 
 
 
     def create_model(self, label_dict_csv_full_path, image_size, tf_compile_kwargs, conv1_filter_size=15):
@@ -164,9 +164,12 @@ class Piece_Classification():
 
         if not tf_compile_kwargs:
             tf_compile_kwargs = {}
-        tf_compile_kwargs['optimizer'] = 'adam'
-        tf_compile_kwargs['loss'] = 'categorical_crossentropy'
-        tf_compile_kwargs['metrics'] = ['accuracy']
+        if 'optimizer' not in tf_compile_kwargs:
+            tf_compile_kwargs['optimizer'] = 'adam'
+        if 'loss' not in tf_compile_kwargs:
+            tf_compile_kwargs['loss'] = 'categorical_crossentropy'
+        if 'metrics' not in tf_compile_kwargs: 
+            tf_compile_kwargs['metrics'] = ['accuracy']
         model.compile(**tf_compile_kwargs)
         return model  
 
