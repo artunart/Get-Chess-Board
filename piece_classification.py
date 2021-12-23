@@ -78,20 +78,25 @@ class Piece_Classification():
         print('Best model saved to: {}'.format('/'.join([model_dir, model_weight_fname])))
     
     
-    def predict(self, data_dir, image_size):
+    def predict(self, data_dir, image_size, tf_load_model_kwargs=None):
         '''Makes classification predictions for the images in data_dir converted the image size indicated.
         Args:
         data_dir: Absolute/relative path of the directory containing prediction images
         image_size: tuple (width, height) in pixels. To convert image size in model specification
+        tf_load_model_kwargs: dict, default:None, kwargs for tf.keras.model.load_model.
         Returns: numpy ndarray. Output of tf.keras.Sequential.predict.
         '''
         if not self.model:
             if not self.model_weight_fname:
                 raise Exception('Piece Classification object does not currently have a model. Either initialize with a model or train the model')
             else:
-                self.model = tf.keras.models.load_model(
+                if not tf_load_model_kwargs:
+                    self.model = tf.keras.models.load_model(
                       '/'.join([self.model_dir, self.model_weight_fname]))
-                
+                else:
+                    self.model = tf.keras.models.load_model(
+                      '/'.join([self.model_dir, self.model_weight_fname]), **tf_load_model_kwargs)
+ 
         X_list = []
 
         #Get data files - filter for images, strip extensions
