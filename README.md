@@ -36,3 +36,42 @@ placement generation from a screenshot.
 More information about the project is available in the [presentation](Project%20Presentation%20-%20Get%20Chess%20Board.pdf) and the [report](Project%20Report%20-%20Get%20Chess%20Board.pdf) (even more detail and discussion of paths forward).
 
 Notebook 1 through 3 contain: end-to-end demonstration of the process in [Part 1 Demo](<Get Chess Board - Part 1 - Objective - Methodology and  End-to-End Demonstration.ipynb>); demonstrations of GUI in [Part 2 - Board GUI](<Get Chess Board - Part 2a - Data Acquisition and Exploration for Chessboard Detection.ipynb>) and [Part 2 - Square GUI](<Get Chess Board - Part 2b - Data Acquisition and Exploration for Piece Identification.ipynb>); and demonstration of the detection and classification objects in [Part 3 - Board Detection](<Get Chess Board - Part 3a - Chessboard Detection - Train + Predict.ipynb>) and [Part 3 - Piece Classification](<Get Chess Board - Part 3b - Piece Classification - Train + Predict.ipynb>).
+
+## 5. Steps to Download the Repo & Steps After Download
+
+Best way to download the repo is to clone it with its submodules:
+
+    git clone --recurse-submodules https://github.com/artunart/Get-Chess-Board
+
+Another option is as follows: first clone the repo, then clone the submodule.
+    
+    git clone https://github.com/artunart/Get-Chess-Board
+    cd Get-Chess-Board`
+    git submodule update --init` 
+
+
+After cloning the repo with the yolov5 submodule, move __init__.py from the repo root to yolov5. This is for the detection object to have access to yolov5.
+    
+    mv __init__.py yolov5
+## 6. Notes on Preparing the Environment
+
+Environment requirements can be found in req_conda.txt (list of conda packages), requirements.txt (for pip install) and  req_conda_list.txt (output of conda list) for different uses.
+
+### Suggestion for setting up the environment on Apple Silicon M1 (macOS Monterey)
+
+I've decided to include the specifics for this OS because it took a lot of trial and error for me to get this right. I wanted to share a solution that worked.
+
+Start with a clean conda environment in [miniforge](https://github.com/conda-forge/miniforge#download): <env_name>
+
+	%conda install python=3.8
+	%conda install -c apple tensorflow-deps==2.7.0
+	%pip install tensorflow-macos==2.7.0
+	%pip install tensorflow-metal==0.3.0
+	%pip install torch==1.9.0 torchvision==0.10.0 torchaudio==0.9
+	%conda install --file req_conda.txt
+	%pip install -r requirements.txt
+	%python -m ipykernel install --user --name=<env_name>
+    Modify your environment's kernel.json file, if necessary, to point to the correct python executable
+    %python -m jupyterlab
+
+For other systems, I've included req_conda_list.txt as an extra reference.
